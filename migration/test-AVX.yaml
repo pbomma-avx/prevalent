@@ -1,0 +1,28 @@
+account_info:
+  - account_id: '549984861789'
+    acc_name:
+    role_name: aviatrix-role-app
+    aws_region: 
+     - us-east-1
+     - ca-cenrtal-1
+     - eu-west-1
+     - eu-west-2
+    vpcs:  
+  - account_id: '884382669647'
+    acc_name:
+    role_name: aviatrix-role-app
+    aws_region: 
+     - us-east-1
+     - ca-cenrtal-1
+     - eu-west-1
+     - eu-west-2
+    vpcs:  
+  - account_id: '893048186204'
+    acc_name:
+    role_name: aviatrix-role-app
+    aws_region: 
+     - us-east-1
+     - ca-cenrtal-1
+     - eu-west-1
+     - eu-west-2
+    vpcs:  

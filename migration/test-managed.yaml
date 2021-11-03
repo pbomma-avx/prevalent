@@ -1,0 +1,19 @@
+account_info:
+  - account_id: '237690'
+    acc_name: 1-avx
+    role_name: aviatrix-role-app
+    aws_region: us-east-2
+    vpcs:
+      - vpc-07cbcee245
+    spoke_routes: ["10.0.0.0/8"]
+    transit_gw: Avx-Gateway
+    managed_tgw: True
+    diy_tgw_id: tgw-0c8a7b74cf
+    diy_tgw_account :
+    avtx_transit: True
+    spoke_gw_name: oh3-spk-gw
+    spoke_gw_size: c5n.xlarge
+    insane_mode: True
+    insane_az1: ["10.2.3.128/26","a"]
+    insane_az2: ["10.2.3.192/26","b"]
+
