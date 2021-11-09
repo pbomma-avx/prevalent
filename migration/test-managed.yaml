@@ -1,19 +1,22 @@
 account_info:
-  - account_id: '237690'
-    acc_name: 1-avx
+  - account_id: '237763167690'
+    acc_name: proda-avx
     role_name: aviatrix-role-app
-    aws_region: us-east-2
+    aws_region: us-east-1
     vpcs:
-      - vpc-07cbcee245
-    spoke_routes: ["10.0.0.0/8"]
-    transit_gw: Avx-Gateway
+      - vpc-0e292e5d331b
+    spoke_routes: [""]
+    spoke_advertisement: [""]
+    transit_gw: transit-gw
     managed_tgw: True
-    diy_tgw_id: tgw-0c8a7b74cf
+    diy_tgw_id: tgw-046150e906b0d
     diy_tgw_account :
     avtx_transit: True
-    spoke_gw_name: oh3-spk-gw
-    spoke_gw_size: c5n.xlarge
-    insane_mode: True
-    insane_az1: ["10.2.3.128/26","a"]
-    insane_az2: ["10.2.3.192/26","b"]
-
+    spoke_gw_name: AWVA-VPC1-AVXGW
+    spoke_gw_size: t3.medium
+    domain_name: 
+    insane_mode: False
+    inspection: False
+    tags: "SnowAppName:Aviatrix,SnowAppCode:Aviatrix"
+    insane_az1: [""]
+    insane_az2: [""]
