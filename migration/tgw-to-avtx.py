@@ -146,7 +146,6 @@ def create_spoke_gw(
         spoke_routes="",
         spoke_advertisement="",
         insane_mode="",
-        tags='',
         route_table_list="",
         keyword_for_log="avx-migration-function---",
         indent="    ",
