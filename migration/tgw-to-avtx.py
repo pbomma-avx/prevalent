@@ -957,7 +957,6 @@ if __name__ == "__main__":
                                 spoke_routes=",".join(account['spoke_routes']),
                                 spoke_advertisement=",".join(account['spoke_advertisement']),
                                 insane_mode=account['insane_mode'],
-                                tags =account['tags'],
                                 route_table_list=",".join(new_rtbs),
                                 keyword_for_log="avx-migration-function---",
                                 indent="    ",
