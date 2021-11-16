@@ -175,7 +175,6 @@ def create_spoke_gw(
         "region": vpc_region_name,
         "vpc_id": vpc_id,
         "public_subnet": gw_subnet,
-        "tags": tags,
         "gw_name": gw_name,
         "gw_size": gw_size,
         "insane_mode": insane_mode
