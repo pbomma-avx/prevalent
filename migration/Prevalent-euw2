@@ -1,0 +1,41 @@
+account_info:
+  - account_id: '893048186204'
+    acc_name: 3GRC
+    role_name: aviatrix-role-app
+    aws_region: eu-west-2
+    vpcs:
+      - vpc-074b3ba21dc57b5fa
+    spoke_routes: [""]
+    spoke_advertisement: [""]
+    transit_gw: EU-West-TGW-1
+    managed_tgw: True
+    diy_tgw_id: tgw-03067141e7df09132
+    diy_tgw_account : '549984861789'
+    avtx_transit: True
+    spoke_gw_name: EU-West-2-Prod-Spoke-GW
+    spoke_gw_size: t3.medium
+    domain_name: 
+    insane_mode: False
+    inspection: False
+    insane_az1: [""]
+    insane_az2: [""]
+  - account_id: '549984861789'
+    acc_name: Prevalent
+    role_name: aviatrix-role-app
+    aws_region: eu-west-2
+    vpcs:
+      - vpc-08b2cde7b22eb9b77
+    spoke_routes: [""]
+    spoke_advertisement: [""]
+    transit_gw: EU-West-TGW-1
+    managed_tgw: True
+    diy_tgw_id: tgw-03067141e7df09132
+    diy_tgw_account :
+    avtx_transit: True
+    spoke_gw_name: EU-West-2-SSvcs-Spoke-GW
+    spoke_gw_size: t3.medium
+    domain_name: 
+    insane_mode: False
+    inspection: False
+    insane_az1: [""]
+    insane_az2: [""]
