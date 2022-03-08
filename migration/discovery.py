@@ -1,5 +1,3 @@
-#!/usr/bin/python3
-
 import sys
 import os
 import json
@@ -12,12 +10,9 @@ import requests
 import time
 from retry import retry
 import botocore
-import pdb
 requests.packages.urllib3.disable_warnings()
 
 # Build role_arn
-
-
 def get_role_arn(account_info):
     account_num = account_info['account_id']
     role_name = account_info['role_name']
@@ -25,8 +20,6 @@ def get_role_arn(account_info):
     return(role_arn)
 
 # Get temp session using sts
-
-
 def get_temp_creds_for_account(role_arn):
     sts_client = boto3.client('sts')
     try:
@@ -39,22 +32,18 @@ def get_temp_creds_for_account(role_arn):
     return(creds)
 
 # Create ec2 handler
-
-
 def get_ec2_resource_handler(aws_region, creds):
     ec2_resource = boto3.resource(
         'ec2',
-        region_name=aws_region,
-        aws_access_key_id=creds['AccessKeyId'],
-        aws_secret_access_key=creds['SecretAccessKey'],
-        aws_session_token=creds['SessionToken']
+         region_name=aws_region,
+         aws_access_key_id=creds['AccessKeyId'],
+         aws_secret_access_key=creds['SecretAccessKey'],
+         aws_session_token=creds['SessionToken']
     )
 
     return(ec2_resource)
 
 # Convert input yaml into json
-
-
 def convert_yaml_to_json(file_path):
     with open(file_path, 'r') as fh:
         json_data = json.dumps(yaml.load(fh, Loader=yaml.FullLoader))
@@ -71,8 +60,6 @@ def check_route_creation(rt):
             return True
 
 # Attach VPC to AWS TGW
-
-
 def attach_vpc_to_aws_tgw(
         api_endpoint_url="",
         CID="",
@@ -115,7 +102,6 @@ def attach_vpc_to_aws_tgw(
 
     return response
 
-
 def detach_vpc_to_aws_tgw(
         api_endpoint_url="",
         CID="",
@@ -146,8 +132,6 @@ def detach_vpc_to_aws_tgw(
 
     return response
 # Create spoke GWs
-
-
 def create_spoke_gw(
         api_endpoint_url="",
         CID="",
@@ -160,22 +144,22 @@ def create_spoke_gw(
         insane_subnet_1="",
         insane_subnet_2="",
         spoke_routes="",
+        spoke_advertisement="",
         insane_mode="",
+        tags='',
         route_table_list="",
         keyword_for_log="avx-migration-function---",
-        tags="",
         indent="    ",
         ec2_resource=""):
 
     if insane_mode:
         insane_mode = "on"
         gw_subnet = insane_subnet_1[0]+"~~"+vpc_region_name+insane_subnet_1[1]
-        hagw_subnet = insane_subnet_2[0]+"~~" + \
-            vpc_region_name+insane_subnet_2[1]
+        hagw_subnet = insane_subnet_2[0]+"~~"+vpc_region_name+insane_subnet_2[1]
 
     else:
         insane_mode = "off"
-        public_subnets = get_public_spoke_gw_cidr(vpc_id, ec2_resource)
+        public_subnets = get_public_spoke_gw_cidr(vpc_id,ec2_resource)
         if len(public_subnets) == 2:
             gw_subnet = public_subnets[0].cidr_block
             hagw_subnet = public_subnets[1].cidr_block
@@ -193,10 +177,9 @@ def create_spoke_gw(
         "region": vpc_region_name,
         "vpc_id": vpc_id,
         "public_subnet": gw_subnet,
+        "tags": tags,
         "gw_name": gw_name,
         "gw_size": gw_size,
-        "enc_volume": "yes",
-        "tags": tags,
         "insane_mode": insane_mode
     }
 
@@ -241,7 +224,27 @@ def create_spoke_gw(
         }
 
         print(indent + keyword_for_log + "Request payload     : \n" +
-              str(json.dumps(obj=payload, indent=4)))
+            str(json.dumps(obj=payload, indent=4)))
+
+        response = _send_aviatrix_api(
+            api_endpoint_url=api_endpoint_url,
+            request_method=request_method,
+            payload=payload,
+            keyword_for_log=keyword_for_log,
+            indent=indent + "    ")
+
+        print(response.json())
+    # Add custom VPC advertisement
+    if spoke_advertisement:
+        payload = {
+            "action": "edit_gateway_advertised_cidr",
+            "CID": CID,
+            "gateway_name": gw_name,
+            "cidr": spoke_advertisement
+        }
+
+        print(indent + keyword_for_log + "Request payload     : \n" +
+            str(json.dumps(obj=payload, indent=4)))
 
         response = _send_aviatrix_api(
             api_endpoint_url=api_endpoint_url,
@@ -254,7 +257,6 @@ def create_spoke_gw(
 
     return response
 # END def create_spoke_gw()
-
 
 def attach_vpc_to_avx_tgw(
         api_endpoint_url="",
@@ -286,17 +288,19 @@ def attach_vpc_to_avx_tgw(
 
     print(response.json())
 
+
+
     # TODO: Add support for attaching to MCNS
     # First get attachment name
-    # action=list_multi_cloud_security_domains_attachment_names&CID={{CID}}&transit_gateway_name=my-gateway009'
+    #action=list_multi_cloud_security_domains_attachment_names&CID={{CID}}&transit_gateway_name=my-gateway009'
 
     # Then switch attachment to security domain.
     # Before this step, we should check if segmentation is enabled
     # but don't see API for that
-    # --form 'action=associate_attachment_to_multi_cloud_security_domain'
-    # --form 'CID={{CID}}'
-    # --form 'domain_name=security-domain'
-    # --form 'attachment_name=conn-1'
+    #--form 'action=associate_attachment_to_multi_cloud_security_domain'
+    #--form 'CID={{CID}}'
+    #--form 'domain_name=security-domain'
+    #--form 'attachment_name=conn-1'
 
     return response
 
@@ -346,7 +350,6 @@ def delete_tgw_security_domain(api_endpoint_url="", CID="", tgw_name="", keyword
     print(response.json())
     return response
 
-
 def list_tgw_security_domain(api_endpoint_url="", CID="", tgw_name="", domain="", keyword_for_log="avx-migration-function---"):
     request_method = "GET"
     payload = {
@@ -365,8 +368,148 @@ def list_tgw_security_domain(api_endpoint_url="", CID="", tgw_name="", domain=""
         payload=payload,
         keyword_for_log=keyword_for_log,
         indent="    ")
+    print(response.json())
     return response
 
+def list_segmentation_gateways(api_endpoint_url="", CID="", keyword_for_log="avx-migration-function---"):
+    request_method = "GET"
+    payload = {
+        "action": "list_transit_gateways_for_multi_cloud_domains",
+        "CID": CID
+    }
+
+    print(keyword_for_log + "Request payload     : \n" +
+          str(json.dumps(obj=payload, indent=4)))
+
+    response = _send_aviatrix_api(
+        api_endpoint_url=api_endpoint_url,
+        request_method=request_method,
+        payload=payload,
+        keyword_for_log=keyword_for_log,
+        indent="    ")
+
+    return response
+
+def list_segmentation_domain_names(api_endpoint_url="", CID="", keyword_for_log="avx-migration-function---"):
+    request_method = "GET"
+    payload = {
+        "action": "list_multi_cloud_security_domain_names",
+        "CID": CID
+    }
+
+    print(keyword_for_log + "Request payload     : \n" +
+          str(json.dumps(obj=payload, indent=4)))
+
+    response = _send_aviatrix_api(
+        api_endpoint_url=api_endpoint_url,
+        request_method=request_method,
+        payload=payload,
+        keyword_for_log=keyword_for_log,
+        indent="    ")
+    print(response.json())
+    return response
+
+def enable_transit_gateway_for_multi_cloud_security_domain(api_endpoint_url="", CID="", transit_gateway_name="", keyword_for_log="avx-migration-function---"):
+    request_method = "POST"
+    payload = {
+        "action": "enable_transit_gateway_for_multi_cloud_security_domain",
+        "CID": CID,
+        "transit_gateway_name": transit_gateway_name
+    }
+
+    print(keyword_for_log + "Request payload     : \n" +
+          str(json.dumps(obj=payload, indent=4)))
+
+    response = _send_aviatrix_api(
+        api_endpoint_url=api_endpoint_url,
+        request_method=request_method,
+        payload=payload,
+        keyword_for_log=keyword_for_log,
+        indent="    ")
+    print(response.json())
+    return response
+
+def add_multi_cloud_security_domain(api_endpoint_url="", CID="", domain_name="", keyword_for_log="avx-migration-function---"):
+    request_method = "POST"
+    payload = {
+        "action": "add_multi_cloud_security_domain",
+        "CID": CID,
+        "domain_name": domain_name
+    }
+
+    print(keyword_for_log + "Request payload     : \n" +
+          str(json.dumps(obj=payload, indent=4)))
+
+    response = _send_aviatrix_api(
+        api_endpoint_url=api_endpoint_url,
+        request_method=request_method,
+        payload=payload,
+        keyword_for_log=keyword_for_log,
+        indent="    ")
+    print(response.json())
+    return response
+
+def list_multi_cloud_security_domains_attachment_names(api_endpoint_url="", CID="", transit_gateway_name="", keyword_for_log="avx-migration-function---"):
+    request_method = "GET"
+    payload = {
+        "action": "list_multi_cloud_security_domains_attachment_names",
+        "CID": CID,
+        "transit_gateway_name": transit_gateway_name
+    }
+
+    print(keyword_for_log + "Request payload     : \n" +
+          str(json.dumps(obj=payload, indent=4)))
+
+    response = _send_aviatrix_api(
+        api_endpoint_url=api_endpoint_url,
+        request_method=request_method,
+        payload=payload,
+        keyword_for_log=keyword_for_log,
+        indent="    ")
+
+    return response
+
+def associate_attachment_to_multi_cloud_security_domain(api_endpoint_url="", CID="", domain_name="", attachment_name="", keyword_for_log="avx-migration-function---"):
+    request_method = "POST"
+    payload = {
+        "action": "associate_attachment_to_multi_cloud_security_domain",
+        "CID": CID,
+        "domain_name": domain_name,
+        "attachment_name": attachment_name
+    }
+
+    print(keyword_for_log + "Request payload     : \n" +
+          str(json.dumps(obj=payload, indent=4)))
+
+    response = _send_aviatrix_api(
+        api_endpoint_url=api_endpoint_url,
+        request_method=request_method,
+        payload=payload,
+        keyword_for_log=keyword_for_log,
+        indent="    ")
+    print(response.json())
+    return response
+
+def spoke_inspection(api_endpoint_url="", CID="", transit_gateway_name="", spoke_gateway_name="", keyword_for_log="avx-migration-function---"):
+    request_method = "POST"
+    payload = {
+        "action": "add_spoke_to_transit_firenet_inspection",
+        "CID": CID,
+        "firenet_gateway_name": transit_gateway_name,
+        "spoke_gateway_name": spoke_gateway_name
+    }
+
+    print(keyword_for_log + "Request payload     : \n" +
+          str(json.dumps(obj=payload, indent=4)))
+
+    response = _send_aviatrix_api(
+        api_endpoint_url=api_endpoint_url,
+        request_method=request_method,
+        payload=payload,
+        keyword_for_log=keyword_for_log,
+        indent="    ")
+    print(response.json())
+    return response
 
 @retry(Exception, tries=15, delay=6)
 def switch_tgw_security_domain(api_endpoint_url="", CID="", tgw_name="", domain="", gw_name="", vpc_name="", vpc_cidr="", keyword_for_log="avx-migration-function---"):
@@ -422,19 +565,16 @@ def login(
 
     return response
 
-
-def get_public_spoke_gw_cidr(vpcid, ec2):
-    filters = [{'Name': 'tag:avx_spoke', 'Values': ['true']},
-               {'Name': 'vpc-id', 'Values': [vpcid]}]
+def get_public_spoke_gw_cidr(vpcid,ec2):
+    filters = [{'Name':'tag:avx_spoke', 'Values':['true']},{'Name':'vpc-id', 'Values':[vpcid]}]
     return list(ec2.subnets.filter(Filters=filters))
-
 
 def list_tgw_name(api_endpoint_url="", CID="", vpc_id="", keyword_for_log="avx-migration-function---"):
     request_method = "GET"
     payload = {
         "action": "list_all_tgw_attachments",
         "CID": CID,
-    }
+        }
 
     print(keyword_for_log + "Request payload     : \n" +
           str(json.dumps(obj=payload, indent=4)))
@@ -449,7 +589,6 @@ def list_tgw_name(api_endpoint_url="", CID="", vpc_id="", keyword_for_log="avx-m
         if result['name'] == vpc_id:
             tgw_name = result['tgw_name']
     return tgw_name
-
 
 def _send_aviatrix_api(
         api_endpoint_url="https://123.123.123.123/v1/api",
@@ -532,6 +671,8 @@ if __name__ == "__main__":
         '--stage_vpcs', help='Stages VPCs for migration (non-traffic impacting)', action='store_true', default=False)
     args_parser.add_argument(
         '--switch_traffic', help='Switches traffic to new hub', action='store_true', default=False)
+    args_parser.add_argument(
+        '--no_rt', help='No duplicate routetables', action='store_true', default=False)
     args = args_parser.parse_args()
 
     if args.ctrl_ip:
@@ -557,10 +698,9 @@ if __name__ == "__main__":
             print("Check your password")
             sys.exit()
 
-    if args.stage_vpcs:
+    if args.stage_vpcs and not args.no_rt:
         with open('subnet_mapping_data.txt', 'w+') as outfile:
-            json.dump({}, outfile)
-
+            json.dump({},outfile)
     # Start iterating over the input yaml
     for account in accounts_data['account_info']:
         role_arn = get_role_arn(account)
@@ -595,6 +735,11 @@ if __name__ == "__main__":
                         continue
 
                 ntag = []
+                if vpc.is_default == True:
+                    print(f"".ljust(45, "-"), "\n")
+                    print(f"    Vpc ID   : {vpc.id} is a default vpc !!\n")
+                    print(f"".ljust(45, "-"), "\n")
+                    continue
                 if vpc.tags:
                     ntag = [tag["Value"]
                             for tag in vpc.tags if tag["Key"] == "Name"]
@@ -630,138 +775,143 @@ if __name__ == "__main__":
                         f"{rpc.id} - {rpc.accepter_vpc_info['VpcId']} - {rpc.accepter_vpc_info['OwnerId']} - {rcidrs}")
                 # VPC peering discovery ends
 
-                vpc_rtbs = vpc.route_tables.all()
+                if not args.no_rt:
+                    vpc_rtbs = vpc.route_tables.all()
 
-                print("\nRouting tables:\n")
-                for rtb in vpc_rtbs:
-                    print(rtb.id)
+                    print("\nRouting tables:\n")
+                    for rtb in vpc_rtbs:
+                        print(rtb.id)
 
-                for rtb in vpc_rtbs:
-                    subnets = []
-                    assocs = []
+                    for rtb in vpc_rtbs:
+                        subnets = []
+                        assocs = []
 
-                    # Creating new RTBs with same name tag
-                    if args.stage_vpcs:
-                        # TODO: Do not create new RTB if no associated subnets
-                        print("Creating new RTB")
-                        tags = []
-                        tags = rtb.tags + \
-                            [{'Key': 'Aviatrix-Managed-Resource', 'Value': 'Migration'}]
-                        new_tag_list = [tg for n, tg in enumerate(
-                            tags) if tg not in tags[n + 1:]]
+                        # Creating new RTBs with same name tag
+                        if args.stage_vpcs:
+                            # TODO: Do not create new RTB if no associated subnets
+                            print("Creating new RTB")
+                            tags = []
+                            tags = rtb.tags + \
+                                [{'Key': 'Aviatrix-Managed-Resource', 'Value': 'Migration'}]
+                            new_tag_list = [tg for n, tg in enumerate(
+                                tags) if tg not in tags[n + 1:]]
+                            for tag in new_tag_list:
+                                if tag["Key"].startswith("aws"):
+                                    new_tag_list.remove(tag)
+                                    
+                            new_rtb = vpc.create_route_table(TagSpecifications=[{'ResourceType': 'route-table',
+                                                                                'Tags': new_tag_list}])
+                            new_rtbs.append(new_rtb.id)
 
-                        new_rtb = vpc.create_route_table(TagSpecifications=[{'ResourceType': 'route-table',
-                                                                            'Tags': new_tag_list}])
-                        new_rtbs.append(new_rtb.id)
+                        print()
+                        print(rtb.id)
+                        print("----------------------\n")
 
-                    print()
-                    print(rtb.id)
-                    print("----------------------\n")
+                        for assoc in rtb.associations_attribute:
+                            try:
+                                assocs.append(assoc['RouteTableAssociationId'])
+                                subnets.append(assoc['SubnetId'])
+                            except KeyError:
+                                pass
 
-                    for assoc in rtb.associations_attribute:
-                        try:
-                            assocs.append(assoc['RouteTableAssociationId'])
-                            subnets.append(assoc['SubnetId'])
-                        except KeyError:
-                            pass
+                        print(f"Associated subnets: {subnets}\n")
 
-                    print(f"Associated subnets: {subnets}\n")
+                        # Key is RTB ID and value is association_id
+                        if args.stage_vpcs:
+                            rtb_subnets[new_rtb.id] = assocs
 
-                    # Key is RTB ID and value is association_id
-                    if args.stage_vpcs:
-                        rtb_subnets[new_rtb.id] = assocs
+                        # Add VGW propagation to new RTB as well
+                        if args.vgw_prop and args.stage_vpcs:
+                            print(f"Propagating VGWs - {rtb.propagating_vgws}")
+                            for vgw in rtb.propagating_vgws:
+                                response = ec2_client.enable_vgw_route_propagation(
+                                    GatewayId=vgw,
+                                    RouteTableId=new_rtb.id)
 
-                    # Add VGW propagation to new RTB as well
-                    if args.vgw_prop and args.stage_vpcs:
-                        print(f"Propagating VGWs - {rtb.propagating_vgws}")
-                        for vgw in rtb.propagating_vgws:
-                            response = ec2_client.enable_vgw_route_propagation(
-                                GatewayId=vgw,
-                                RouteTableId=new_rtb.id)
+                        # rtb.routes does not return the VPCE route so using the client interface instead
+                        rtb_routes = ec2_client.describe_route_tables(
+                            RouteTableIds=[rtb.id])
 
-                    # rtb.routes does not return the VPCE route so using the client interface instead
-                    rtb_routes = ec2_client.describe_route_tables(
-                        RouteTableIds=[rtb.id])
-
-                    print("Routes:\n")
-                    print(f"Prefix".ljust(24), "Next-hop".ljust(29), "Origin")
-                    print(f"".rjust(63, "-"))
-                    for rt in rtb_routes['RouteTables'][0]['Routes']:
-                        nhop = None
-                        if rt.get('GatewayId'):
-                            nhop = rt['GatewayId']
-                            if nhop != "local":
-                                if args.stage_vpcs and rt.get('DestinationPrefixListId'):
-                                    # This is the only AWS API call that is not already included in aviatrix-role-app
-                                    try:
-                                        response = ec2_client.modify_vpc_endpoint(
-                                            VpcEndpointId=nhop, AddRouteTableIds=[new_rtb.id])
-                                    except botocore.exceptions.ClientError as e:
-                                        print(
-                                            f"{rt.get('DestinationPrefixListId')} - {nhop} --> Please add this entry manually\n")
-                                        pass
-                                elif args.stage_vpcs:
-                                    if rt.get('DestinationIpv6CidrBlock'):
-                                        new_rt = new_rtb.create_route(
-                                            DestinationIpv6CidrBlock=rt.get('DestinationIpv6CidrBlock'), GatewayId=nhop)
+                        print("Routes:\n")
+                        print(f"Prefix".ljust(24), "Next-hop".ljust(29), "Origin")
+                        print(f"".rjust(63, "-"))
+                        for rt in rtb_routes['RouteTables'][0]['Routes']:
+                            nhop = None
+                            if rt.get('GatewayId'):
+                                nhop = rt['GatewayId']
+                                if nhop != "local":
+                                    if args.stage_vpcs and rt.get('DestinationPrefixListId'):
+                                        # This is the only AWS API call that is not already included in aviatrix-role-app
+                                        try:
+                                            response = ec2_client.modify_vpc_endpoint(
+                                                VpcEndpointId=nhop, AddRouteTableIds=[new_rtb.id])
+                                        except botocore.exceptions.ClientError as e:
+                                            print(
+                                                f"{rt.get('DestinationPrefixListId')} - {nhop} --> Please add this entry manually\n")
+                                            pass
+                                    elif args.stage_vpcs:
+                                        if rt.get('DestinationIpv6CidrBlock'):
+                                            new_rt = new_rtb.create_route(
+                                                DestinationIpv6CidrBlock=rt.get('DestinationIpv6CidrBlock'), GatewayId=nhop)
+                                        else:
+                                            new_rt = new_rtb.create_route(
+                                                DestinationCidrBlock=rt.get('DestinationCidrBlock'), GatewayId=nhop)
                                     else:
-                                        new_rt = new_rtb.create_route(
-                                            DestinationCidrBlock=rt.get('DestinationCidrBlock'), GatewayId=nhop)
-                                else:
-                                    pass
+                                        pass
 
-                        elif rt.get('TransitGatewayId'):
-                            nhop = rt['TransitGatewayId']
-                        elif rt.get('VpcPeeringConnectionId'):
-                            nhop = rt['VpcPeeringConnectionId']
-                            if args.stage_vpcs:
-                                new_rt = new_rtb.create_route(DestinationCidrBlock=rt.get(
-                                    'DestinationCidrBlock'), VpcPeeringConnectionId=nhop)
-                        elif rt.get('NatGatewayId'):
-                            nhop = rt['NatGatewayId']
-                            if args.stage_vpcs:
-                                new_rt = new_rtb.create_route(
-                                    DestinationCidrBlock=rt['DestinationCidrBlock'], NatGatewayId=nhop)
-                        elif rt.get('NetworkInterfaceId'):
-                            nhop = rt['NetworkInterfaceId']
-                            if args.stage_vpcs:
-                                new_rt = new_rtb.create_route(DestinationCidrBlock=rt.get(
-                                    'DestinationCidrBlock'), NetworkInterfaceId=nhop)
-                        # elif rt.local_gateway_id:
-                        # The ID of the local gateway
-                        #    nhop = rt.local_gateway_id
-                        else:
-                            print(rt)
-
-                        try:
-                            print(
-                                f"{rt['DestinationPrefixListId'].ljust(25)}{nhop.ljust(30)}manual")
-                        except:
-                            if rt.get('DestinationIpv6CidrBlock'):
-                                print(
-                                    f"{rt.get('Origin')} - {rt.get('DestinationIpv6CidrBlock')} - {nhop}")
+                            elif rt.get('TransitGatewayId'):
+                                nhop = rt['TransitGatewayId']
+                            elif rt.get('VpcPeeringConnectionId'):
+                                nhop = rt['VpcPeeringConnectionId']
+                                if args.stage_vpcs:
+                                    new_rt = new_rtb.create_route(DestinationCidrBlock=rt.get(
+                                        'DestinationCidrBlock'), VpcPeeringConnectionId=nhop)
+                            elif rt.get('NatGatewayId'):
+                                nhop = rt['NatGatewayId']
+                                if args.stage_vpcs:
+                                    new_rt = new_rtb.create_route(
+                                        DestinationCidrBlock=rt['DestinationCidrBlock'], NatGatewayId=nhop)
+                            elif rt.get('NetworkInterfaceId'):
+                                nhop = rt['NetworkInterfaceId']
+                                if args.stage_vpcs:
+                                    new_rt = new_rtb.create_route(DestinationCidrBlock=rt.get(
+                                        'DestinationCidrBlock'), NetworkInterfaceId=nhop)
+                            # elif rt.local_gateway_id:
+                            # The ID of the local gateway
+                            #    nhop = rt.local_gateway_id
                             else:
-                                if rt.get('Origin') == "CreateRouteTable":
+                                print(rt)
+
+                            try:
+                                print(
+                                    f"{rt['DestinationPrefixListId'].ljust(25)}{nhop.ljust(30)}manual")
+                            except:
+                                if rt.get('DestinationIpv6CidrBlock'):
                                     print(
-                                        f"{rt.get('DestinationCidrBlock').ljust(25)}{nhop.ljust(30)}auto")
-                                elif rt.get('Origin') == "CreateRoute":
-                                    print(
-                                        f"{rt.get('DestinationCidrBlock').ljust(25)}{nhop.ljust(30)}manual")
-                                elif rt.get('Origin') == "EnableVgwRoutePropagation":
-                                    print(
-                                        f"{rt.get('DestinationCidrBlock').ljust(25)}{nhop.ljust(30)}VGW")
+                                        f"{rt.get('Origin')} - {rt.get('DestinationIpv6CidrBlock')} - {nhop}")
                                 else:
-                                    print(rt.get('DestinationCidrBlock').ljust(
-                                        25), nhop.ljust(30), rt.get('Origin'))
-                # End of RTB iteration
+                                    if rt.get('Origin') == "CreateRouteTable":
+                                        print(
+                                            f"{rt.get('DestinationCidrBlock').ljust(25)}{nhop.ljust(30)}auto")
+                                    elif rt.get('Origin') == "CreateRoute":
+                                        print(
+                                            f"{rt.get('DestinationCidrBlock').ljust(25)}{nhop.ljust(30)}manual")
+                                    elif rt.get('Origin') == "EnableVgwRoutePropagation":
+                                        print(
+                                            f"{rt.get('DestinationCidrBlock').ljust(25)}{nhop.ljust(30)}VGW")
+                                    else:
+                                        print(rt.get('DestinationCidrBlock').ljust(
+                                            25), nhop.ljust(30), rt.get('Origin'))
+                    # End of RTB iteration
 
                 # Below is executed per VPC
                 if args.stage_vpcs:
-                    with open('subnet_mapping_data.txt', 'r+') as outfile:
-                        data = json.load(outfile)
-                        data.update({vpc.id: rtb_subnets})
-                        outfile.seek(0)
-                        json.dump(data, outfile)
+                    if not args.no_rt:
+                        with open('subnet_mapping_data.txt', 'r+') as outfile:
+                            data = json.load(outfile)
+                            data.update({vpc.id:rtb_subnets})
+                            outfile.seek(0)
+                            json.dump(data, outfile)
 
                     # Attach VPC with new RTBs to AWS TGW or Aviatrix Transit
                     if account['avtx_transit'] == False:
@@ -777,8 +927,7 @@ if __name__ == "__main__":
                             route_domain_name="temp123",
                             route_table_list=",".join(new_rtbs),
                             customized_routes=",".join(account['spoke_routes']),
-                            customized_route_advertisement=",".join(
-                                account['spoke_advertisement']),
+                            customized_route_advertisement=",".join(account['spoke_advertisement']),
                             keyword_for_log="avx-migration-function---",
                             indent="    ")
                     else:
@@ -801,105 +950,130 @@ if __name__ == "__main__":
                                 gw_size = "t3.medium"
 
                             print(f"Defaulting to {gw_size}")
-                        if account['tags'].strip():
-                            tags = account['tags']
+
                         response = create_spoke_gw(
-                            api_endpoint_url=api_ep_url+"api",
-                            CID=CID,
-                            vpc_access_account_name=account['acc_name'],
-                            vpc_region_name=account['aws_region'],
-                            vpc_id=vpc.id,
-                            avx_tgw_name=account['transit_gw'],
-                            gw_name=gw_name,
-                            gw_size=gw_size,
-                            insane_subnet_1=account['insane_az1'],
-                            insane_subnet_2=account['insane_az2'],
-                            spoke_routes=",".join(account['spoke_routes']),
-                            insane_mode=account['insane_mode'],
-                            route_table_list=",".join(new_rtbs),
-                            keyword_for_log="avx-migration-function---",
-                            tags=tags,
-                            indent="    ",
-                            ec2_resource=ec2_resource)
+                                    api_endpoint_url=api_ep_url+"api",
+                                    CID=CID,
+                                    vpc_access_account_name=account['acc_name'],
+                                    vpc_region_name=account['aws_region'],
+                                    vpc_id=vpc.id,
+                                    avx_tgw_name=account['transit_gw'],
+                                    gw_name=gw_name,
+                                    gw_size=gw_size,
+                                    insane_subnet_1=account['insane_az1'],
+                                    insane_subnet_2=account['insane_az2'],
+                                    spoke_routes=",".join(account['spoke_routes']),
+                                    spoke_advertisement=",".join(account['spoke_advertisement']),
+                                    insane_mode=account['insane_mode'],
+                                    tags =account['tags'],
+                                    route_table_list=",".join(new_rtbs),
+                                    keyword_for_log="avx-migration-function---",
+                                    indent="    ",
+                                    ec2_resource=ec2_resource)
 
                 if args.switch_traffic:
                     if account['diy_tgw_account']:
-                        role_arn = "arn:aws:iam::" + \
-                            account['diy_tgw_account'] + \
-                            ":role/"+account['role_name']
+                        role_arn = "arn:aws:iam::"+account['diy_tgw_account']+":role/"+account['role_name']
                         creds = get_temp_creds_for_account(role_arn)
-                        ec2_resource_main = get_ec2_resource_handler(
-                            account['aws_region'], creds)
+                        ec2_resource_main = get_ec2_resource_handler(account['aws_region'],creds)
                         ec2_client_main = ec2_resource_main.meta.client
                     else:
                         ec2_client_main = ec2_client
-
+                    
                     response = ec2_client.describe_transit_gateway_vpc_attachments(Filters=[{'Name': 'vpc-id', 'Values': [vpc.id]},
-                                                                                            {'Name': 'state', 'Values': [
-                                                                                                'available']},
-                                                                                            {'Name': 'transit-gateway-id', 'Values': [account['diy_tgw_id']]}])
+                                                                                                {'Name': 'state', 'Values': ['available']},
+                                                                                                {'Name': 'transit-gateway-id', 'Values': [account['diy_tgw_id']]}])                            
 
                     if account['managed_tgw']:
-                        tgw_name = list_tgw_name(
-                            api_endpoint_url=api_ep_url+"api", CID=CID, vpc_id=vpc.id)
+                        tgw_name = list_tgw_name(api_endpoint_url=api_ep_url+"api", CID=CID, vpc_id=vpc.id)
                         dresponse = detach_vpc_to_aws_tgw(
-                            api_endpoint_url=api_ep_url+"api",
-                            CID=CID,
-                            vpc_id=vpc.id,
-                            aws_tgw_name=tgw_name)
-                    else:
-
+                                    api_endpoint_url=api_ep_url+"api",
+                                    CID=CID,
+                                    vpc_id=vpc.id,
+                                    aws_tgw_name=tgw_name)  
+                    else:  
+                                                            
                         tgw_attach_id = response["TransitGatewayVpcAttachments"][0]["TransitGatewayAttachmentId"]
 
                         response = ec2_client_main.get_transit_gateway_attachment_propagations(
-                            TransitGatewayAttachmentId=tgw_attach_id)
+                                    TransitGatewayAttachmentId=tgw_attach_id)
 
                     # Disable spoke CIDR propagation to DIY TGW
                         for tgw_rtb in response['TransitGatewayAttachmentPropagations']:
                             response = ec2_client_main.disable_transit_gateway_route_table_propagation(
-                                TransitGatewayRouteTableId=tgw_rtb['TransitGatewayRouteTableId'], TransitGatewayAttachmentId=tgw_attach_id)
+                                    TransitGatewayRouteTableId=tgw_rtb['TransitGatewayRouteTableId'], TransitGatewayAttachmentId=tgw_attach_id)
 
                     # Change the subnet association
-                    if response['ResponseMetadata']['HTTPStatusCode'] == 200:
-                        with open('subnet_mapping_data.txt') as json_file:
-                            rtb_subnets = json.load(json_file)[vpc.id]
+                    if not args.no_rt:
+                        if response['ResponseMetadata']['HTTPStatusCode'] == 200:
+                            with open('subnet_mapping_data.txt') as json_file:
+                                rtb_subnets = json.load(json_file)[vpc.id]
 
-                        for rt, subs in rtb_subnets.items():
-                            for sub in subs:
-                                response = ec2_client.replace_route_table_association(
-                                    RouteTableId=rt, AssociationId=sub)
-                    else:
-                        print("Unable to attach VPC")
-                        print(response.json()['reason'])
+                            for rt, subs in rtb_subnets.items():
+                                for sub in subs:
+                                    response = ec2_client.replace_route_table_association(
+                                                            RouteTableId=rt, AssociationId=sub)
+                        else:
+                            print("Unable to attach VPC")
+                            print(response.json()['reason'])
+
 
                     if account['avtx_transit'] == False:
                         # If no security domain provided, fallback to Default_Domain
-                        domain_name = "Default_Domain"
+                        domain_name ="Default_Domain"
                         if account['domain_name']:
                             dresponse = list_tgw_security_domain(api_endpoint_url=api_ep_url+"api", CID=CID, tgw_name=account['transit_gw'],
-                                                                domain=account['domain_name'])
+                                                            domain=account['domain_name'])
 
                             for dname in dresponse.json()['results']:
                                 if dname['name'] == account['domain_name']:
                                     print(" ")
-                                    print("Domain exists")
+                                    print ("Domain exists")
                                     domain_name = account['domain_name']
                                 else:
                                     print(" ")
-                                    print(
-                                        "Provided Domain name doesnt exist so switching it to Default_Domain")
+                                    print ("Provided Domain name doesnt exist so switching it to Default_Domain")
 
                         response = switch_tgw_security_domain(api_endpoint_url=api_ep_url+"api", CID=CID, tgw_name=account['transit_gw'],
-                                                            domain=domain_name, gw_name="atgw-aws-us-east-1", vpc_name=vpc.id, vpc_cidr=cidrs[0])
+                                                        domain=domain_name, gw_name="atgw-aws-us-east-1", vpc_name=vpc.id, vpc_cidr=cidrs[0])
 
                     else:
                         response = attach_vpc_to_avx_tgw(
-                            api_endpoint_url=api_ep_url+"api",
-                            CID=CID,
-                            avx_tgw_name=account['transit_gw'],
-                            gw_name=account['spoke_gw_name'],
-                            route_table_list=",".join(rtb_subnets.keys()))
-
+                                    api_endpoint_url=api_ep_url+"api",
+                                    CID=CID,
+                                    avx_tgw_name=account['transit_gw'],
+                                    gw_name=account['spoke_gw_name'],
+                                    route_table_list=",".join(rtb_subnets.keys()))
+                        if account['domain_name']:
+                            sresponse = list_segmentation_gateways(api_endpoint_url=api_ep_url+"api", CID=CID)
+                            dresponse = list_segmentation_domain_names(api_endpoint_url=api_ep_url+"api", CID=CID)
+                            
+                            if account['transit_gw'] in sresponse.json()['results']['domain_enabled_list']:
+                                print(" ")
+                                print ("Segmentation exists")
+                            else:
+                                response = enable_transit_gateway_for_multi_cloud_security_domain(api_endpoint_url=api_ep_url+"api", CID=CID,
+                                                                                                    transit_gateway_name = account['transit_gw'])
+                            if account['domain_name'] in dresponse.json()['results']:
+                                print()
+                                print ("Domain exists")
+                            else:
+                                response = add_multi_cloud_security_domain(api_endpoint_url=api_ep_url+"api", CID=CID,
+                                                                            domain_name = account['domain_name'])
+                            aresponse = list_multi_cloud_security_domains_attachment_names(api_endpoint_url=api_ep_url+"api", CID=CID,
+                                                                                            transit_gateway_name = account['transit_gw'])
+                            if account['spoke_gw_name'] in aresponse.json()['results']['attached_list'][account['domain_name']]:
+                                print()
+                                print ("Spoke is attached to the domain")
+                            else:
+                                response = associate_attachment_to_multi_cloud_security_domain(api_endpoint_url=api_ep_url+"api", CID=CID,
+                                                                        domain_name = account['domain_name'],
+                                                                        attachment_name = account['spoke_gw_name'])
+                        if account['inspection'] == True:
+                            spoke_gw_name = "SPOKE:"+account['spoke_gw_name']
+                            response = spoke_inspection(api_endpoint_url=api_ep_url+"api", CID=CID,
+                                                        transit_gateway_name = account['transit_gw'],
+                                                        spoke_gateway_name = spoke_gw_name)                           
                     if account['avtx_transit'] == False:
                         response = delete_tgw_security_domain(
-                            api_endpoint_url=api_ep_url+"api", CID=CID, tgw_name=account['transit_gw'])
+                                api_endpoint_url=api_ep_url+"api", CID=CID, tgw_name=account['transit_gw'])
